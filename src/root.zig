@@ -86,7 +86,7 @@ pub inline fn make(Interface: type, value: anytype) Interface {
     const vtable = MakeVtable(Interface, Impl);
     return Interface{
         .vtable = &vtable,
-        .impl = value,
+        .ptr = value,
     };
 }
 
@@ -123,13 +123,13 @@ inline fn MethodReturnType(I: type, method: FieldEnum(I)) type {
 }
 
 pub inline fn call(intfc: anytype, method: FieldEnum(@TypeOf(intfc)), args: anytype) MethodReturnType(@TypeOf(intfc), method) {
-    return @field(getVtable(intfc).*, @tagName(method))(intfc.impl, args);
+    return @field(getVtable(intfc).*, @tagName(method))(intfc.ptr, args);
 }
 
 pub inline fn maybeCast(T: type, intfc: anytype) ?T {
     const vtable = &MakeVtable(@TypeOf(intfc), T);
     if (intfc.vtable == @as(*const anyopaque, @ptrCast(@alignCast(vtable)))) {
-        return selfCast(T, intfc.impl);
+        return selfCast(T, intfc.ptr);
     } else {
         return null;
     }
@@ -146,7 +146,7 @@ test make {
         }
 
         vtable: *const anyopaque,
-        impl: *anyopaque,
+        ptr: *anyopaque,
     };
 
     const FooImpl = struct {
@@ -176,7 +176,7 @@ test maybeCast {
         }
 
         vtable: *const anyopaque,
-        impl: *anyopaque,
+        ptr: *anyopaque,
     };
 
     const FooImpl = struct {
