@@ -2,6 +2,7 @@ const std = @import("std");
 const print = std.debug.print;
 const Type = std.builtin.Type;
 
+// Args tuple type for a method
 inline fn MethodArgs(M: type) type {
     const params = @typeInfo(M).Fn.params[1..];
     comptime var types: []const type = &.{};
@@ -11,10 +12,12 @@ inline fn MethodArgs(M: type) type {
     return std.meta.Tuple(types);
 }
 
+// Convenience function to get the return type of a method type
 inline fn RetType(M: type) type {
     return @typeInfo(M).Fn.return_type.?;
 }
 
+// The type of the "magic" method stored in the vtable
 inline fn MethodType(M: type) type {
     const params: []const Type.Fn.Param = &.{
         .{
@@ -37,6 +40,7 @@ inline fn MethodType(M: type) type {
     } });
 }
 
+// Cast the pointer from an interface to the correct "self" type
 inline fn selfCast(Self: type, ptr: *anyopaque) Self {
     switch (@typeInfo(Self)) {
         .Pointer => {
@@ -48,6 +52,7 @@ inline fn selfCast(Self: type, ptr: *anyopaque) Self {
     }
 }
 
+// The "magic" method pointer that we store in the vtable
 inline fn methodPtr(method: anytype) *const MethodType(@TypeOf(method)) {
     const Fn = @typeInfo(@TypeOf(method)).Fn;
     const Ret = Fn.return_type.?;
@@ -61,10 +66,6 @@ inline fn methodPtr(method: anytype) *const MethodType(@TypeOf(method)) {
     };
     return &inner.meth;
 }
-
-// Method pointer taking args
-//inline fn methodPtr(method: anytype) {
-//}
 
 // Create a vtable for a given implementation type
 inline fn MakeVtable(Interface: type, Impl: type) VtableType(Interface) {
@@ -82,7 +83,6 @@ inline fn MakeVtable(Interface: type, Impl: type) VtableType(Interface) {
 // Cast an implementation pointer into an interface
 pub inline fn make(Interface: type, value: anytype) Interface {
     const Impl = @typeInfo(@TypeOf(value)).Pointer.child;
-    // TODO is this properly memoized?
     const vtable = MakeVtable(Interface, Impl);
     return Interface{
         .vtable = &vtable,
