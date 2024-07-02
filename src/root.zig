@@ -1,5 +1,4 @@
 const std = @import("std");
-const print = std.debug.print;
 const Type = std.builtin.Type;
 
 // Args tuple type for a method
