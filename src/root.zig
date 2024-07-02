@@ -112,20 +112,26 @@ inline fn getVtable(intfc: anytype) *const VtableType(@TypeOf(intfc)) {
     return @as(*const Vtable, @ptrCast(@alignCast(intfc.vtable)));
 }
 
+// Convenience function to get the field enum for the vtable for an interface type
 inline fn FieldEnum(I: type) type {
     return std.meta.FieldEnum(VtableType(I));
 }
 
+// Convenience function to get the return type of a method in the vtable
 inline fn MethodReturnType(I: type, method: FieldEnum(I)) type {
     const Vtable = VtableType(I);
     const Child = @typeInfo(std.meta.FieldType(Vtable, method)).Pointer.child;
     return @typeInfo(Child).Fn.return_type.?;
 }
 
+// Call a method in the vtable. Takes a field enum and a tuple of the arguments after `self`.
 pub inline fn call(intfc: anytype, method: FieldEnum(@TypeOf(intfc)), args: anytype) MethodReturnType(@TypeOf(intfc), method) {
     return @field(getVtable(intfc).*, @tagName(method))(intfc.ptr, args);
 }
 
+// Cast an interface to a pointer (or the actual struct) if the
+// vtables match, otherwise return null. Uses the same "smart" cast as
+// the magic methods in the vtable.
 pub inline fn maybeCast(T: type, intfc: anytype) ?T {
     const vtable = &MakeVtable(@TypeOf(intfc), T);
     if (intfc.vtable == @as(*const anyopaque, @ptrCast(@alignCast(vtable)))) {
