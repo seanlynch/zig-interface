@@ -44,10 +44,10 @@ const Foo = struct {
 };
 ```
 
-Note that the methods are normal methods and can be a const struct or
-a pointer. The "magic" methods in the vtable handle the necessary
-pointer casting. However, there is currently no way to specify a const
-interface; they're always mutable.
+Note that the methods are normal methods and `self` can be a const
+struct or a pointer. The "magic" methods in the vtable handle the
+necessary pointer casting. However, there is currently no way to
+specify a const interface; they're always mutable.
 
 ## Instantiating an interface
 
