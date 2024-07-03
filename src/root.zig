@@ -1,9 +1,18 @@
 const std = @import("std");
 const Type = std.builtin.Type;
 
+// Return the function typeinfo for a function or a pointer to a function
+inline fn getFn(T: type) Type.Fn {
+    return switch (@typeInfo(T)) {
+        .Fn => |f| f,
+        .Pointer => |p| @typeInfo(p.child).Fn,
+        else => @compileError("Expected function or pointer to function"),
+    };
+}
+
 // Args tuple type for a method
 inline fn MethodArgs(M: type) type {
-    const params = @typeInfo(M).Fn.params[1..];
+    const params = getFn(M).params[1..];
     comptime var types: []const type = &.{};
     inline for (params) |param| {
         types = types ++ .{param.type.?};
@@ -13,7 +22,7 @@ inline fn MethodArgs(M: type) type {
 
 // Convenience function to get the return type of a method type
 inline fn RetType(M: type) type {
-    return @typeInfo(M).Fn.return_type.?;
+    return getFn(M).return_type.?;
 }
 
 // The type of the "magic" method stored in the vtable
@@ -53,7 +62,7 @@ inline fn selfCast(Self: type, ptr: *anyopaque) Self {
 
 // The "magic" method pointer that we store in the vtable
 inline fn methodPtr(method: anytype) *const MethodType(@TypeOf(method)) {
-    const Fn = @typeInfo(@TypeOf(method)).Fn;
+    const Fn = getFn(@TypeOf(method));
     const Ret = Fn.return_type.?;
     const Self = Fn.params[0].type.?;
     const Args = MethodArgs(@TypeOf(method));
@@ -140,12 +149,40 @@ pub inline fn maybeCast(T: type, intfc: anytype) ?T {
     }
 }
 
+pub inline fn interfaceMethod(name: []const u8, Mptr: type) Mptr {
+    const Fn = @typeInfo(@typeInfo(Mptr).Pointer.child).Fn;
+    const params = Fn.params;
+    const Ret = Fn.return_type.?;
+    const inner = switch (params.len) {
+        1 => struct {
+            pub fn meth(intfc: params[0].type.?) Ret {
+                return @field(getVtable(intfc).*, name)(intfc.ptr, .{});
+            }
+        },
+        2 => struct {
+            pub fn meth(intfc: params[0].type.?, arg1: params[1].type.?) Ret {
+                return @field(getVtable(intfc).*, name)(intfc.ptr, .{arg1});
+            }
+        },
+        3 => struct {
+            pub fn meth(intfc: params[0].type.?, arg1: params[1].type.?, arg2: params[2].type.?) Ret {
+                return @field(getVtable(intfc).*, name)(intfc.ptr, .{ arg1, arg2 });
+            }
+        },
+        4 => struct {
+            pub fn meth4(intfc: params[0].type.?, arg1: params[1].type.?, arg2: params[2].type.?, arg3: params[3].type.?) Ret {
+                return @field(getVtable(intfc).*, name)(intfc.ptr, .{ arg1, arg2, arg3 });
+            }
+        },
+        else => @compileError("Too many arguments to interface method"),
+    };
+
+    return &inner.meth;
+}
+
 test make {
     const FooInterface = struct {
-        pub fn foo(self: @This(), x: i32, y: i32) i32 {
-            return call(self, .foo, .{ x, y });
-        }
-
+        pub const foo = interfaceMethod("foo", *const fn (self: @This(), x: i32, y: i32) i32);
         pub fn incr(self: @This(), x: i32) void {
             return call(self, .incr, .{x});
         }
@@ -170,7 +207,6 @@ test make {
     };
 
     const bar = make(FooInterface, &fooImpl);
-
     try std.testing.expect(bar.foo(6, 7) == 18);
 }
 
