@@ -1,6 +1,6 @@
 .{
     .name = "interface",
-    .version = "0.0.1",
+    .version = "0.1.0",
     .minimum_zig_version = "0.13.0",
     .dependencies = .{
     },
@@ -9,8 +9,7 @@
         "build.zig",
         "build.zig.zon",
         "src",
-        // For example...
         "LICENSE",
-        //"README.md",
+        "README.md",
     },
 }
